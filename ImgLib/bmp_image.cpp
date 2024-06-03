@@ -11,7 +11,9 @@ namespace img_lib {
 
     // to calculate padding from width
     static int GetBMPStride(int w) {
-        return 4 * ((w * 3 + 3) / 4);
+        const int color_count = 3;
+        const int padding_bytes_count = 4;
+        return padding_bytes_count * ((w * color_count + color_count) / padding_bytes_count);
     }
 
     static const int BITMAP_FILE_HEADER_SIZE = 14;
@@ -53,13 +55,24 @@ namespace img_lib {
 
         // write this method
         bool SaveBMP(const Path& file, const Image& image) {
-        ofstream out(file, ios::binary);//flag for binary data 
+        ofstream out(file, ios::binary);//flag for binary data         
         const int w = image.GetWidth();
         const int h = image.GetHeight();
         BitmapFileHeader bfh(w, h);//creating first header part
         BitmapInfoHeader bih(w, h);//creating second header part
+        if (!out) // operator! is used here
+        {
+            std::cout << "SAVE: File opening failed\n";
+            return EXIT_FAILURE;
+        }
         out.write(reinterpret_cast<const char*>(&bfh), BITMAP_FILE_HEADER_SIZE);//recording first header part
         out.write(reinterpret_cast<const char*>(&bih), BITMAP_INFO_HEADER_SIZE);//recording second header part
+        if (out.bad()) {
+            std::cout << "SAVE: I/O error while reading\n";
+        }
+        else if (out.fail()) {
+            std::cout << "SAVE: Another error has occured\n";
+        }
         auto stride = GetBMPStride(w);
         std::vector<char> buff(stride);//In saving and loading create vector<char> with size, which will be equal to padding
         for (int y = h - 1; y >= 0; --y) {//we shall record from down to up
@@ -87,8 +100,19 @@ namespace img_lib {
         int32_t w, h, bytes_to_ignore;//creating local variables
         bytes_to_ignore = sizeof(BitmapFileHeader) + sizeof(uint32_t); //ignoring the part of header, that consist of BitmapFileHeader and first field of BitmapInfoHeader
         ifs.ignore(bytes_to_ignore);
+        if (!out) // operator! is used here
+        {
+            std::cout << "LOAD: File opening failed\n";
+            return EXIT_FAILURE;
+        }
         ifs.read(reinterpret_cast<char*>(&w), sizeof(w));//reading width - 4 bytes
         ifs.read(reinterpret_cast<char*>(&h), sizeof(h));//reading height - 4 bytes
+        if (out.bad()) {
+            std::cout << "LOAD: width or height: I/O error while reading\n";
+        }
+        else if (out.fail()) {
+            std::cout << "LOAD: width or height: Another error has occured\n";
+        }
         Image result(w, h, Color::Black());//creating image-prototype, which will be filled
         auto stride = GetBMPStride(w);
         std::vector<char> buff(stride);//In saving and loading create vector<char> with size, which will be equal to padding
@@ -102,6 +126,12 @@ namespace img_lib {
                 line[x].g = static_cast<byte>(buff[x * 3 + 1]);
                 line[x].r = static_cast<byte>(buff[x * 3 + 2]);
             }
+        }
+        if (out.bad()) {
+            std::cout << "LOAD: rgb: I/O error while reading\n";
+        }
+        else if (out.fail()) {
+            std::cout << "LOAD: rgb: Another error has occured\n";
         }
         return result;
     }
