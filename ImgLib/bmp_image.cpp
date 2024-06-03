@@ -9,7 +9,7 @@ using namespace std;
 
 namespace img_lib {
 
-    // функция вычисления отступа по ширине
+    // to calculate padding from width
     static int GetBMPStride(int w) {
         return 4 * ((w * 3 + 3) / 4);
     }
@@ -17,91 +17,88 @@ namespace img_lib {
     static const int BITMAP_FILE_HEADER_SIZE = 14;
     static const int BITMAP_INFO_HEADER_SIZE = 40;
     static const int BITMAP_HEADER_SIZE = BITMAP_FILE_HEADER_SIZE + BITMAP_INFO_HEADER_SIZE;
-    PACKED_STRUCT_BEGIN BitmapFileHeader{//макрос отключает padding у структуры и обозначает начало структуры, заменяя ключевое слово struct
+    PACKED_STRUCT_BEGIN BitmapFileHeader{//this macro turns off structure's padding and means structure's beginning, changing "struct" key-word 
     public:
         BitmapFileHeader(int image_width, int image_height)
-        : header_data_weight(BITMAP_HEADER_SIZE + (GetBMPStride(image_width) * image_height))//размер данных определяется как отступ, умноженный на высоту изображения
-        {//к-тор структуры. Не объявляем explicit, чтобы можно было поле header_data_weight задать отдельно        
+        : header_data_weight(BITMAP_HEADER_SIZE + (GetBMPStride(image_width) * image_height))//data-size = padding * image_height
+        {//c-tor. Not "explicit" to possibility with manual changing header_data_weight 
         }
-        // поля заголовка Bitmap File Header
-        char label[2] = {'B', 'M'};//подпись
-        uint32_t header_data_weight;//суммарный вес заголовка и данных
-        uint32_t reserved_space = 0;//зарезервированное пространство, инициализированное нулями
-        uint32_t indention = BITMAP_HEADER_SIZE;//промежуток между началом файла и началом данных - размер заголовка
+        // Bitmap File Header fields
+        char label[2] = {'B', 'M'};//format label
+        uint32_t header_data_weight;//amount of headers sizes
+        uint32_t reserved_space = 0;// initialized by zero's
+        uint32_t indention = BITMAP_HEADER_SIZE;// between file's beginning and data-beginning - full-header-size
     }
-        PACKED_STRUCT_END//макрос завершают участок с отключенным padding
+        PACKED_STRUCT_END//this macro ends the part without padding
 
-        PACKED_STRUCT_BEGIN BitmapInfoHeader{//макрос отключает padding у структуры и обозначает начало структуры, заменяя ключевой слово struct
+        PACKED_STRUCT_BEGIN BitmapInfoHeader{//this macro turns off structure's padding and means structure's beginning, changing "struct" key-word
         public:
             BitmapInfoHeader(int image_width, int image_height)
             : width_in_pixels(image_width), height_in_pixels(image_height), bytes_in_data(GetBMPStride(image_width) * image_height) {
             }
-            // поля заголовка Bitmap Info Header
-            uint32_t info_header_weight = BITMAP_INFO_HEADER_SIZE;//размер второй части заголовка
-            int32_t width_in_pixels;//ширина изображения в пикселях
-            int32_t height_in_pixels;//высота изображения в пикселях
-            uint16_t color_plane_count = 1;//количество цветовых плоскостей
+            // Bitmap Info Header fields
+            uint32_t info_header_weight = BITMAP_INFO_HEADER_SIZE;//size of the second part of the header
+            int32_t width_in_pixels;
+            int32_t height_in_pixels;
+            uint16_t color_plane_count = 1;
             uint16_t pit_in_pixel_count = 24;
-            uint32_t compression_type = 0;//тип сжатия
-            uint32_t bytes_in_data;//количество бит на пиксель
-            int32_t horizontal_resolution = 11811;//горизонтальное расширение - количество пикселей на метр
-            int32_t vertical_resolution = 11811;//вертикальное расширение - количество пикселей на метр
-            int32_t color_count = 0;//количество использованных цветов
-            int32_t valuable_colors = 0x1000000;//количество значимых цветов
+            uint32_t compression_type = 0;
+            uint32_t bytes_in_data;
+            int32_t horizontal_resolution = 11811;// count of pixels in 1 meter
+            int32_t vertical_resolution = 11811;//count of pixels in 1 meter
+            int32_t color_count = 0;//of used colores
+            int32_t valuable_colors = 0x1000000;//number of sagnificant colors
     }
-        PACKED_STRUCT_END//макрос завершают участок с отключенным padding
+        PACKED_STRUCT_END//this macro ends the part without padding
 
-        // напишите эту функцию
+        // write this method
         bool SaveBMP(const Path& file, const Image& image) {
-        ofstream out(file, ios::binary);//флаг для бинарников    
+        ofstream out(file, ios::binary);//flag for binary data 
         const int w = image.GetWidth();
         const int h = image.GetHeight();
-        BitmapFileHeader bfh(w, h);//создаем первую часть заголовка
-        BitmapInfoHeader bih(w, h);//создаем вторую часть заголовка
-        out.write(reinterpret_cast<const char*>(&bfh), BITMAP_FILE_HEADER_SIZE);//записываем первую часть заголовка
-        out.write(reinterpret_cast<const char*>(&bih), BITMAP_INFO_HEADER_SIZE);//записываем вторую часть заголовка
+        BitmapFileHeader bfh(w, h);//creating first header part
+        BitmapInfoHeader bih(w, h);//creating second header part
+        out.write(reinterpret_cast<const char*>(&bfh), BITMAP_FILE_HEADER_SIZE);//recording first header part
+        out.write(reinterpret_cast<const char*>(&bih), BITMAP_INFO_HEADER_SIZE);//recording second header part
         auto stride = GetBMPStride(w);
-        std::vector<char> buff(stride);//При сохранении и загрузке создайте vector<char> с размером, равным отступу
-        for (int y = h - 1; y >= 0; --y) {//записывать будем снизу вверх
+        std::vector<char> buff(stride);//In saving and loading create vector<char> with size, which will be equal to padding
+        for (int y = h - 1; y >= 0; --y) {//we shall record from down to up
             const Color* line = image.GetLine(y);
             for (int x = 0; x < w; ++x) {
-                buff[x * 3 + 0] = static_cast<char>(line[x].b);//биты указываются в обратном порядке
+                buff[x * 3 + 0] = static_cast<char>(line[x].b);//bytes record with reverse order
                 buff[x * 3 + 1] = static_cast<char>(line[x].g);
                 buff[x * 3 + 2] = static_cast<char>(line[x].r);
             }
-            /*отступ не всегда равен утроенной ширине: к каждой строке может добавляться padding, чтобы количество байт стало кратно четырём. Padding нужно заполнить нулевыми байтами. Формула для вычисления отступа приведена ниже.*/
-            /*if (int padding = stride - (w * 3) > 0) {
-                for (int p = 0; p < padding; ++p) {
-                    buff[w * 3 + p] = '\0';
-                }
-            }*/
+            /*padding is not always equal "width * 3": padding may be added to every query to make number of bytes multiplyof four. 
+            We need to fill padding with zero bytes. Padding-calculation formula is given below.*/
+            
             out.write(buff.data(), stride);
         }
         return out.good();
     }
 
-    // напишите эту функцию
+    // write this method
     Image LoadBMP(const Path& file) {
-        // открываем поток с флагом ios::binary
-        // поскольку будем читать данные в двоичном формате
+        //opening stream with binary-flag
+        // cause we shall read data from binary-code
         ifstream ifs(file, ios::binary);
-        //байты записываются в файл и читаются из него по порядку их описания в теле структуры
-        //структуры идут одна за другой в том же порядке, в котором мы их туда записали, потом идет описание пикселей
-        int32_t w, h, bytes_to_ignore;//создаем локальные переменные
-        bytes_to_ignore = sizeof(BitmapFileHeader) + sizeof(uint32_t); //игнорируем всю часть заголовка с BitmapFileHeader и первое поле BitmapInfoHeader
+        //bytes has recorded to file and read from file in order for its description in structure-body
+        //strucures is going in sequence in order, we wrote. Then will go pixel's description
+        int32_t w, h, bytes_to_ignore;//creating local variables
+        bytes_to_ignore = sizeof(BitmapFileHeader) + sizeof(uint32_t); //ignoring the part of header, that consist of BitmapFileHeader and first field of BitmapInfoHeader
         ifs.ignore(bytes_to_ignore);
-        ifs.read(reinterpret_cast<char*>(&w), sizeof(w));//читаем широту - 4 байта
-        ifs.read(reinterpret_cast<char*>(&h), sizeof(h));//читаем высоту - 4 байта
-        Image result(w, h, Color::Black());//создаем прообраз картинки, который будем заполнять
+        ifs.read(reinterpret_cast<char*>(&w), sizeof(w));//reading width - 4 bytes
+        ifs.read(reinterpret_cast<char*>(&h), sizeof(h));//reading height - 4 bytes
+        Image result(w, h, Color::Black());//creating image-prototype, which will be filled
         auto stride = GetBMPStride(w);
-        std::vector<char> buff(stride);//При сохранении и загрузке создайте vector<char> с размером, равным отступу
-        bytes_to_ignore = sizeof(uint32_t) * 3 + sizeof(int32_t) * 4;//игнорируем оставшуюся часть заголовка - ненужные поля структуры BitmapInfoHeader
+        std::vector<char> buff(stride);//In saving and loading create vector<char> with size, which will be equal to padding
+        bytes_to_ignore = sizeof(uint32_t) * 3 + sizeof(int32_t) * 4;//ignoring last part of header - useless fields of BitmapInfoHeader
         ifs.ignore(bytes_to_ignore);
-        for (int y = h - 1; y >= 0; --y) {//читаем снизу вверх
+        for (int y = h - 1; y >= 0; --y) {//reading from down to up
             Color* line = result.GetLine(y);
-            ifs.read(buff.data(), stride);//учитываем, что "При сохранении и загрузке создайте vector<char> с размером, равным отступу"
+            ifs.read(buff.data(), stride);//our buff has stride-equal size
             for (int x = 0; x < w; ++x) {
-                line[x].b = static_cast<byte>(buff[x * 3 + 0]);//биты указываются в обратном порядке
+                line[x].b = static_cast<byte>(buff[x * 3 + 0]);//bytes are in reverse order
                 line[x].g = static_cast<byte>(buff[x * 3 + 1]);
                 line[x].r = static_cast<byte>(buff[x * 3 + 2]);
             }
